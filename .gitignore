@@ -1,12 +1,10 @@
+@"
 # ==========================
 # .NET Build Files
 # ==========================
 
 bin/
 obj/
-*.dll
-*.exe
-*.pdb
 
 # ==========================
 # Visual Studio / IDE
@@ -21,20 +19,11 @@ obj/
 # TidyTunes Data
 # ==========================
 
-# User music database
 Data/Database/*.db
 Data/Database/*.sqlite
-
-# Backups
 Data/Backups/
-
-# Cache
 Data/Cache/
-
-# Temporary files
 Data/Temp/
-
-# Import/export working files
 Data/Imports/
 Data/Exports/
 
@@ -46,17 +35,15 @@ Logs/
 *.log
 
 # ==========================
-# Reports Generated Locally
+# Generated Reports
 # ==========================
 
 Reports/
 
 # ==========================
-# Configuration Overrides
+# Local Configuration
 # ==========================
 
-# Keep template/example settings
-# Ignore local machine settings
 Config/settings.local.json
 
 # ==========================
@@ -67,7 +54,7 @@ TestResults/
 *.trx
 
 # ==========================
-# OS Files
+# Operating System
 # ==========================
 
 Thumbs.db
@@ -75,7 +62,7 @@ Desktop.ini
 .DS_Store
 
 # ==========================
-# User Music / Media
+# Music Files
 # ==========================
 
 *.mp3
@@ -85,3 +72,4 @@ Desktop.ini
 *.aac
 *.ogg
 *.wma
+"@ | Set-Content ".gitignore"
