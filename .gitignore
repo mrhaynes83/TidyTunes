@@ -72,4 +72,14 @@ Desktop.ini
 *.aac
 *.ogg
 *.wma
+
+# Release builds
+Release/
+
+# Third-party local tools/installers
+Config/Logo/*.exe
+
+# Local tools
+Tools/
+
 "@ | Set-Content ".gitignore"
