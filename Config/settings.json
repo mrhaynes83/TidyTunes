@@ -1,0 +1,10 @@
+{
+  "MusicLibrary": "D:\\Music",
+  "DatabasePath": "I:\\TidyTunes\\Data\\Database\\TidyTunes.db",
+  "DuplicateHandling": "KeepBest",
+  "CorruptFileHandling": "Quarantine",
+  "RequireDeleteConfirmation": true,
+  "AcoustIdApiKey": "n55SGco1gR",
+  "FpCalcPath": "I:\\TidyTunes\\Tools\\fpcalc",
+  "FfmpegPath": "I:\\TidyTunes\\Tools\\ffmpeg"
+}

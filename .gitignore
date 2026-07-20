@@ -1,0 +1,87 @@
+# ==========================
+# .NET Build Files
+# ==========================
+
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+
+# ==========================
+# Visual Studio / IDE
+# ==========================
+
+.vs/
+.idea/
+*.user
+*.suo
+
+# ==========================
+# TidyTunes Data
+# ==========================
+
+# User music database
+Data/Database/*.db
+Data/Database/*.sqlite
+
+# Backups
+Data/Backups/
+
+# Cache
+Data/Cache/
+
+# Temporary files
+Data/Temp/
+
+# Import/export working files
+Data/Imports/
+Data/Exports/
+
+# ==========================
+# Runtime Files
+# ==========================
+
+Logs/
+*.log
+
+# ==========================
+# Reports Generated Locally
+# ==========================
+
+Reports/
+
+# ==========================
+# Configuration Overrides
+# ==========================
+
+# Keep template/example settings
+# Ignore local machine settings
+Config/settings.local.json
+
+# ==========================
+# Testing
+# ==========================
+
+TestResults/
+*.trx
+
+# ==========================
+# OS Files
+# ==========================
+
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ==========================
+# User Music / Media
+# ==========================
+
+*.mp3
+*.flac
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.wma

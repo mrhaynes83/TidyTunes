@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TidyTunes.Analysis/TidyTunes.Analysis.csproj" />
+    <Project Path="src/TidyTunes.CLI/TidyTunes.CLI.csproj" />
+    <Project Path="src/TidyTunes.Core/TidyTunes.Core.csproj" />
+    <Project Path="src/TidyTunes.Data/TidyTunes.Data.csproj" />
+    <Project Path="src/TidyTunes.Scanner/TidyTunes.Scanner.csproj" />
+  </Folder>
+</Solution>

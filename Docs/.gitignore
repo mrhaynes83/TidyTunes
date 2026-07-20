@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+
+# Rider
+.idea/
+
+# Runtime files
+*.log
+
+# Databases
+*.db
+*.sqlite
+
+# Generated reports
+Reports/
+
+# Cache
+Data/Cache/
+
+# Temporary files
+Data/Temp/

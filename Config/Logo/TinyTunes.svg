@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 218.08 275.28">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: .22em;
+      }
+
+      .cls-2 {
+        fill: #22c55e;
+        font-family: Reel-ShortBlack, Reel;
+        font-size: 169.17px;
+      }
+
+      .cls-2, .cls-3, .cls-4, .cls-5 {
+        isolation: isolate;
+      }
+
+      .cls-2, .cls-5 {
+        font-weight: 800;
+      }
+
+      .cls-6 {
+        letter-spacing: .15em;
+      }
+
+      .cls-7 {
+        letter-spacing: 0em;
+      }
+
+      .cls-8 {
+        letter-spacing: .22em;
+      }
+
+      .cls-9 {
+        letter-spacing: .15em;
+      }
+
+      .cls-10 {
+        letter-spacing: .16em;
+      }
+
+      .cls-11 {
+        letter-spacing: .18em;
+      }
+
+      .cls-12 {
+        letter-spacing: .2em;
+      }
+
+      .cls-4 {
+        fill: #4b5563;
+        font-family: SegoeUI, 'Segoe UI';
+        font-size: 8.67px;
+      }
+
+      .cls-5 {
+        fill: #0075a5;
+        font-family: Reel-TallBlack, Reel;
+        font-size: 199.92px;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g class="cls-3">
+      <text class="cls-5" transform="translate(0 169.93)"><tspan x="0" y="0">Tidy</tspan></text>
+      <text class="cls-2" transform="translate(1.25 246.28) scale(.81 1)"><tspan x="0" y="0">Tun</tspan><tspan class="cls-7" x="157.46" y="0">e</tspan><tspan x="211.21" y="0">s</tspan></text>
+    </g>
+    <text class="cls-4" transform="translate(1.25 260.21) scale(.94 1)"><tspan class="cls-1" x="0" y="0">SIMP</tspan><tspan class="cls-10" x="27.25" y="0">L</tspan><tspan class="cls-1" x="32.74" y="0">Y • EFFECTIVE • </tspan><tspan class="cls-12" x="124.08" y="0">A</tspan><tspan class="cls-1" x="131.43" y="0">U</tspan><tspan class="cls-11" x="139.31" y="0">T</tspan><tspan class="cls-8" x="145.37" y="0">OM</tspan><tspan class="cls-9" x="163.54" y="0">A</tspan><tspan class="cls-1" x="170.43" y="0">TIC • NE</tspan><tspan class="cls-6" x="217.18" y="0">A</tspan><tspan class="cls-1" x="224.07" y="0">T</tspan></text>
+  </g>
+</svg>
