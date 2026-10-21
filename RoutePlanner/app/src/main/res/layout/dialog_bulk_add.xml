@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="top|start"
-        android:hint="@string/bulk_hint"
+        android:hint="@string/paste_field_hint"
         android:importantForAutofill="no"
         android:inputType="textMultiLine|textPostalAddress"
         android:maxLines="12"

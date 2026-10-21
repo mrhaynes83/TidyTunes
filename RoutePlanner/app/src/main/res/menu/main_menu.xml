@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/action_bulk_add"
-        android:title="@string/bulk_title"
+        android:title="@string/paste_title"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_reverse"

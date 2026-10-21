@@ -3,6 +3,7 @@ package com.mrhaynes.routeplanner
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -107,6 +108,7 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         setupMap(savedInstanceState)
 
         findViewById<Button>(R.id.btn_add).setOnClickListener { addFromInput() }
+        findViewById<Button>(R.id.btn_paste).setOnClickListener { showPasteDialog() }
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_GO) {
                 addFromInput()
@@ -193,13 +195,20 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
     private fun addFromInput() {
         val text = input.text.toString().trim()
         if (text.isEmpty()) return
+        hideKeyboard()
+        // Several addresses pasted into the box: let the user review them.
+        val several = AddressExtractor.extract(text)
+        if (several.size >= 2) {
+            input.setText("")
+            reviewAndAdd(several)
+            return
+        }
         if (!geocoding.isAvailable && Geocoding.parseLatLng(text) == null) {
             toast(getString(R.string.geocoder_missing))
             return
         }
-        hideKeyboard()
         runBusy {
-            val result = geocoding.search(text)
+            val result = geocoding.search(text, biasFor(text))
             if (result == null) {
                 toast(getString(R.string.address_not_found, text))
             } else {
@@ -208,6 +217,10 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
             }
         }
     }
+
+    /** Addresses without a city are looked up near the phone first. */
+    private fun biasFor(address: String): GeoPoint? =
+        if (AddressExtractor.hasLocality(address)) null else lastLocation
 
     private fun addFromMap(point: GeoPoint) {
         runBusy {
@@ -226,28 +239,76 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         refresh(fitMap = true)
     }
 
-    private fun showBulkAdd() {
+    /** Paste any text (email, spreadsheet, notes); the addresses in it are picked out. */
+    private fun showPasteDialog() {
         val view = layoutInflater.inflate(R.layout.dialog_bulk_add, null)
         val field = view.findViewById<EditText>(R.id.bulk_input)
+        clipboardText()?.let {
+            field.setText(it)
+            field.selectAll()
+        }
         AlertDialog.Builder(this)
-            .setTitle(R.string.bulk_title)
+            .setTitle(R.string.paste_title)
+            .setMessage(R.string.bulk_hint)
             .setView(view)
-            .setPositiveButton(R.string.bulk_add) { _, _ ->
-                val lines = field.text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                addMany(lines)
+            .setPositiveButton(R.string.find_addresses) { _, _ -> findAddresses(field.text.toString()) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun clipboardText(): String? {
+        val clipboard = getSystemService(ClipboardManager::class.java) ?: return null
+        val clip = clipboard.primaryClip ?: return null
+        if (clip.itemCount == 0) return null
+        return clip.getItemAt(0).coerceToText(this)?.toString()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun findAddresses(text: String) {
+        if (text.isBlank()) return
+        runBusy {
+            val found = AddressFinder.find(this@MainActivity, text)
+            if (found.isNotEmpty()) {
+                reviewAndAdd(found)
+                return@runBusy
+            }
+            val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle(R.string.none_found_title)
+                .setMessage(R.string.none_found_message)
+                .setPositiveButton(R.string.use_lines) { _, _ -> reviewAndAdd(lines) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    /** Shows the addresses found, all ticked, so the user can drop any before adding. */
+    private fun reviewAndAdd(candidates: List<String>) {
+        if (candidates.isEmpty()) return
+        val room = MAX_STOPS - stops.size
+        val items = candidates.take(maxOf(room, 0))
+        if (items.isEmpty()) {
+            toast(getString(R.string.too_many_stops, MAX_STOPS))
+            return
+        }
+        val checked = BooleanArray(items.size) { true }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.found_title, items.size))
+            .setMultiChoiceItems(items.toTypedArray(), checked) { _, which, isChecked -> checked[which] = isChecked }
+            .setPositiveButton(R.string.add_selected) { _, _ ->
+                addMany(items.filterIndexed { i, _ -> checked[i] })
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
-    private fun addMany(lines: List<String>) {
-        if (lines.isEmpty()) return
+    private fun addMany(addresses: List<String>) {
+        if (addresses.isEmpty()) return
         runBusy {
             val failed = mutableListOf<String>()
-            lines.forEachIndexed { i, line ->
-                summary.text = getString(R.string.finding_progress, i + 1, lines.size)
-                val result = geocoding.search(line)
-                if (result == null) failed.add(line) else addStop(result.label, result.point)
+            addresses.forEachIndexed { i, address ->
+                summary.text = getString(R.string.finding_progress, i + 1, addresses.size)
+                val result = geocoding.search(address, biasFor(address))
+                if (result == null) failed.add(address) else addStop(result.label, result.point)
             }
             refresh(fitMap = true)
             if (failed.isNotEmpty()) {
@@ -404,7 +465,7 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
     @SuppressLint("NotifyDataSetChanged")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.action_bulk_add -> showBulkAdd()
+            R.id.action_bulk_add -> showPasteDialog()
             R.id.action_reverse -> {
                 stops.reverse()
                 adapter.notifyDataSetChanged()

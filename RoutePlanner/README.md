@@ -5,8 +5,14 @@ efficient order, then drive it with Google Maps.
 
 ## Features
 
-- Add stops by typing an address, pasting a whole list (one address per line),
-  or long-pressing the map. Supports up to 300 stops.
+- Add stops by typing an address, tapping **Paste**, or long-pressing the map.
+  Supports up to 300 stops.
+- **Paste** takes any text (an email, a route sheet, rows copied from a
+  spreadsheet) and pulls out just the addresses, ignoring names, phone
+  numbers, order numbers, prices, and notes. Addresses split over several
+  lines are joined back up. You get a ticked list to review before they're
+  added. Works best with US and Canadian addresses; PO boxes are skipped.
+- Addresses with no city ("123 Main St") are looked up near you first.
 - **Optimize route** reorders stops for the shortest trip, starting from your
   current location (or the first stop) and optionally returning to the start.
 - Numbered markers and the route line on a Google Map.
