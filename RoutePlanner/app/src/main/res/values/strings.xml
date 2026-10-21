@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Route Planner</string>
+    <string name="app_name">TidyRoutes</string>
     <string name="address_hint">Address or place</string>
     <string name="add">Add</string>
     <string name="start_from_location">Start from my location</string>

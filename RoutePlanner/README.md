@@ -1,4 +1,4 @@
-# Route Planner (Android)
+# TidyRoutes (Android)
 
 Plan a multi-stop driving route and have the app put the stops in the most
 efficient order, then drive it with Google Maps.
@@ -26,8 +26,8 @@ but not always perfect for driving time.
 
 ## Getting the APK
 
-Every push that touches `RoutePlanner/` runs the **Route Planner APK** GitHub
-Actions workflow, which runs the tests, builds `RoutePlanner.apk`, and attaches
+Every push that touches `RoutePlanner/` runs the **TidyRoutes APK** GitHub
+Actions workflow, which runs the tests, builds `TidyRoutes.apk`, and attaches
 it to a new GitHub release. Open the latest release on your phone, download the
 APK, and allow installing from your browser when Android asks.
 
@@ -41,7 +41,7 @@ but the in-app map is hidden. To turn it on:
    `com.mrhaynes.routeplanner` if you like).
 2. In this GitHub repo: Settings → Secrets and variables → Actions → New
    repository secret, name `MAPS_API_KEY`, value = the key.
-3. Re-run the workflow (Actions → Route Planner APK → Run workflow) and install
+3. Re-run the workflow (Actions → TidyRoutes APK → Run workflow) and install
    the new APK.
 
 For local builds, put `MAPS_API_KEY=your-key` in `RoutePlanner/local.properties`
