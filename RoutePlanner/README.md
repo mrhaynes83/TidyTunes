@@ -12,9 +12,16 @@ efficient order, then drive it with Google Maps.
   numbers, order numbers, prices, and notes. Addresses split over several
   lines are joined back up. You get a ticked list to review before they're
   added. Works best with US and Canadian addresses; PO boxes are skipped.
-- Addresses with no city ("123 Main St") are looked up near you first.
-- **Optimize route** reorders stops for the shortest trip, starting from your
-  current location (or the first stop) and optionally returning to the start.
+- Addresses with no town ("18 Boston Post Rd") are looked up near the other
+  stops you're adding, or near you.
+- **Optimize route** reorders stops for the shortest trip. Toggles above the
+  list choose how:
+  - **Start & end at home**: the route leaves from and returns to a saved
+    home or warehouse address (long-press the toggle to change it).
+  - **Farthest stop first**: drive straight to the stop farthest from the
+    start, then work your way back, finishing near home.
+  - **From my location** / **Return to start**: start where you are now, and
+    optionally come back (used when home is off).
 - Numbered markers and the route line on a Google Map.
 - **Navigate** opens Google Maps turn-by-turn. Google Maps allows 10 stops per
   trip, so longer routes are split into parts (stops 1–10, 11–20, …).

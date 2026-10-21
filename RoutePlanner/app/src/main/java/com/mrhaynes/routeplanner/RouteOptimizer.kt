@@ -28,34 +28,39 @@ object RouteOptimizer {
         return 2 * EARTH_RADIUS_M * asin(min(1.0, sqrt(h)))
     }
 
-    /** Total length of visiting [stops] in the given order, starting at [start]. */
-    fun routeLength(start: GeoPoint, stops: List<GeoPoint>, roundTrip: Boolean): Double {
-        if (stops.isEmpty()) return 0.0
+    /**
+     * Total length of visiting [stops] in order, starting at [start] and then
+     * driving to [end] (null = the route stops at the last stop).
+     */
+    fun routeLength(start: GeoPoint, stops: List<GeoPoint>, end: GeoPoint?): Double {
+        if (stops.isEmpty()) return end?.let { distanceMeters(start, it) } ?: 0.0
         var total = distanceMeters(start, stops[0])
         for (i in 1 until stops.size) total += distanceMeters(stops[i - 1], stops[i])
-        if (roundTrip) total += distanceMeters(stops.last(), start)
+        if (end != null) total += distanceMeters(stops.last(), end)
         return total
     }
 
     /**
      * Returns indices into [stops] in the order they should be visited.
-     * The route begins at [start]; if [roundTrip] it also ends there.
+     * The route begins at [start] and, if [end] is given, finishes there
+     * (pass the start again for a round trip).
      */
     fun optimize(
         start: GeoPoint,
         stops: List<GeoPoint>,
-        roundTrip: Boolean,
+        end: GeoPoint?,
         restarts: Int = defaultRestarts(stops.size),
         seed: Long = 42L,
     ): List<Int> {
         val n = stops.size
         if (n <= 1) return List(n) { it }
 
-        val points = listOf(start) + stops
+        // Node 0 is the start, 1..n the stops, n+1 the end (if any).
+        val points = listOf(start) + stops + listOfNotNull(end)
         val dist = Array(points.size) { i ->
             DoubleArray(points.size) { j -> distanceMeters(points[i], points[j]) }
         }
-        val solver = Solver(dist, roundTrip)
+        val solver = Solver(dist, pathSize = n + 1, endNode = if (end != null) n + 1 else -1)
 
         var best = solver.improve(solver.nearestNeighbor())
         var bestCost = solver.cost(best)
@@ -72,6 +77,23 @@ object RouteOptimizer {
         return best.drop(1).map { it - 1 }
     }
 
+    /**
+     * Plans a route from [base]. Normally the shortest order; with
+     * [farthestFirst] it heads straight to the stop farthest from [base] and
+     * then works back toward [base], visiting the rest on the way.
+     * If [returnToBase] the route ends back at [base].
+     */
+    fun plan(base: GeoPoint, stops: List<GeoPoint>, returnToBase: Boolean, farthestFirst: Boolean): List<Int> {
+        if (!farthestFirst || stops.size < 2) {
+            return optimize(base, stops, if (returnToBase) base else null)
+        }
+        val far = stops.indices.maxBy { distanceMeters(base, stops[it]) }
+        val rest = stops.indices.filter { it != far }
+        // Always aim the rest of the route back toward base, even if the trip ends at the last stop.
+        val order = optimize(stops[far], rest.map { stops[it] }, base)
+        return listOf(far) + order.map { rest[it] }
+    }
+
     private fun defaultRestarts(n: Int) = when {
         n <= 15 -> 40
         n <= 60 -> 25
@@ -79,27 +101,33 @@ object RouteOptimizer {
         else -> 2
     }
 
-    /** Works on paths of node indices where node 0 (the start) is always first. */
-    private class Solver(private val d: Array<DoubleArray>, private val closed: Boolean) {
-        private val size = d.size
+    /**
+     * Works on paths of node indices where node 0 (the start) is always first.
+     * After the last node the route continues to [endNode], unless it is -1.
+     */
+    private class Solver(
+        private val d: Array<DoubleArray>,
+        private val pathSize: Int,
+        private val endNode: Int,
+    ) {
         private val eps = 1e-9
 
         fun cost(path: List<Int>): Double {
             var total = 0.0
             for (i in 1 until path.size) total += d[path[i - 1]][path[i]]
-            if (closed) total += d[path.last()][path[0]]
+            if (endNode >= 0) total += d[path.last()][endNode]
             return total
         }
 
         fun nearestNeighbor(): MutableList<Int> {
-            val visited = BooleanArray(size)
+            val visited = BooleanArray(pathSize)
             val path = mutableListOf(0)
             visited[0] = true
-            repeat(size - 1) {
+            repeat(pathSize - 1) {
                 val last = path.last()
                 var bestNode = -1
                 var bestDist = Double.MAX_VALUE
-                for (j in 0 until size) {
+                for (j in 1 until pathSize) {
                     if (!visited[j] && d[last][j] < bestDist) {
                         bestDist = d[last][j]
                         bestNode = j
@@ -112,7 +140,7 @@ object RouteOptimizer {
         }
 
         fun randomTour(random: Random): MutableList<Int> =
-            (mutableListOf(0) + (1 until size).shuffled(random)).toMutableList()
+            (mutableListOf(0) + (1 until pathSize).shuffled(random)).toMutableList()
 
         fun improve(path: MutableList<Int>): MutableList<Int> {
             var improved = true
@@ -122,12 +150,9 @@ object RouteOptimizer {
             return path
         }
 
-        /** Node after position [k], or -1 if the path is open and [k] is last. */
-        private fun next(path: List<Int>, k: Int): Int = when {
-            k < path.size - 1 -> path[k + 1]
-            closed -> path[0]
-            else -> -1
-        }
+        /** Node after position [k]: the next stop, the end node, or -1 for none. */
+        private fun next(path: List<Int>, k: Int): Int =
+            if (k < path.size - 1) path[k + 1] else endNode
 
         private fun dist(a: Int, b: Int): Double = if (a < 0 || b < 0) 0.0 else d[a][b]
 

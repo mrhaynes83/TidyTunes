@@ -14,8 +14,8 @@ object AddressExtractor {
         "Street", "Str", "St", "Avenue", "Ave", "Av", "Road", "Rd", "Boulevard", "Blvd",
         "Drive", "Dr", "Lane", "Ln", "Way", "Wy", "Court", "Ct", "Place", "Pl", "Plaza", "Plz",
         "Square", "Sq", "Terrace", "Ter", "Terr", "Trail", "Trl", "Parkway", "Pkwy", "Pky",
-        "Highway", "Hwy", "Circle", "Cir", "Loop", "Alley", "Aly", "Crescent", "Cres", "Close",
-        "Grove", "Grv", "Row", "Run", "Pass", "Path", "Pike", "Point", "Pt", "Expressway", "Expy",
+        "Highway", "Hwy", "Circle", "Cir", "Loop", "Alley", "Aly", "Crescent", "Cres",
+        "Grove", "Grv", "Path", "Pike", "Point", "Pt", "Expressway", "Expy",
         "Freeway", "Fwy", "Turnpike", "Tpke", "Causeway", "Cswy", "Center", "Ctr", "Crossing",
         "Xing", "Heights", "Hts", "Hill", "Ridge", "Rdg", "Landing", "Lndg", "Commons", "Walk",
         "Bend", "Cove", "Cv", "Glen", "Gln", "Mews", "Estates", "Est", "Village", "Vlg",
@@ -43,47 +43,70 @@ object AddressExtractor {
         "Nova Scotia", "New Brunswick",
     ).joinToString("|")
 
-    /** Common words that are never part of a street name (cuts false hits like "2 dogs on Main St"). */
+    /** US state codes that are also everyday words, so lowercase "in", "me", "or" aren't read as states. */
+    private val WORD_LIKE_CODES = setOf(
+        "AL", "AR", "CO", "DE", "GA", "HI", "ID", "IN", "LA", "MA", "ME", "MI", "MO", "NE", "OH",
+        "OK", "OR", "PA", "VA", "WA", "AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE",
+        "QC", "SK", "YT", "VI", "GU", "PR",
+    )
+    private val SAFE_LOWERCASE_CODES =
+        STATE_CODES.split("|").filter { it !in WORD_LIKE_CODES }.joinToString("|") { it.lowercase() }
+    private val CAPITALIZED_CODES =
+        STATE_CODES.split("|").joinToString("|") { it[0] + it.substring(1).lowercase() }
+
+    /**
+     * Words that are never part of a street or town name. Cuts false hits from
+     * notes like "2 dogs on Main St" or "501-3 rows".
+     */
     private const val STOP_WORDS =
         "on|at|in|to|of|the|and|or|for|from|near|by|my|your|our|is|are|was|were|be|have|has|had|" +
             "with|items?|boxes|box|pcs|pieces|packages?|units?|days?|hours?|hrs|minutes?|mins|times|" +
-            "people|dollars|miles|mi|km|am|pm"
+            "people|dollars|miles|mi|km|am|pm|rows?|cases?|bags?|oz|lbs?|cans?|bottles?|cartons?|" +
+            "pallets?|shelf|shelves|feet|foot|ft|inch(?:es)?|sections?|aisles?|racks?|displays?"
 
-    // Uppercase-only codes, so words like "in", "or", "me" are not read as states.
     private const val ZIP = """(?-i:\d{5}(?:-\d{4})?|[A-Z]\d[A-Z] ?\d[A-Z]\d)"""
-    private val STATE = """(?:(?-i:(?:$STATE_CODES))|(?:$STATE_NAMES))\b"""
+
+    // With a comma or ZIP: uppercase codes ("IL") or full names.
+    private val STATE = """\b(?:(?-i:(?:$STATE_CODES))|(?:$STATE_NAMES))\b"""
 
     // Any case ("il"); only trusted when a ZIP code follows.
-    private val STATE_ANY_CASE = """(?:$STATE_CODES|$STATE_NAMES)\b"""
-    private const val CITY = """[A-Za-z][A-Za-z.'\-]*(?: [A-Za-z][A-Za-z.'\-]*){0,3}"""
+    private val STATE_ANY_CASE = """\b(?:$STATE_CODES|$STATE_NAMES)\b"""
 
-    // "City, ST", "City, ST 12345", or "City ST 12345" (no comma needs a ZIP).
-    private val LOCALITY =
-        """(?:\s?,?\s?$CITY\s?,?\s?$STATE_ANY_CASE\s?,?\s?$ZIP|\s?,\s?$CITY\s?,\s?$STATE)(?![\w-])"""
+    // No comma or ZIP ("willimantic ct"): capitalized codes, or lowercase codes that aren't words.
+    private val STATE_LOOSE =
+        """\b(?:(?-i:$STATE_CODES|$CAPITALIZED_CODES|$SAFE_LOWERCASE_CODES)|(?:$STATE_NAMES))\b"""
 
-    private const val NUMBER = """(?<![\w#$.\-/:@])\d{1,6}[A-Za-z]?(?:-\d{1,5}[A-Za-z]?)?"""
+    private val CITY_WORD = """(?!(?:$STOP_WORDS)\b)[A-Za-z][A-Za-z.'\-]*"""
+    private val CITY = """$CITY_WORD(?: $CITY_WORD){0,3}"""
+
+    // Always at least a space or comma between parts, so names can't split mid-word.
+    private const val SEP = """(?: ?, ?| )"""
+
+    // "City, ST", "City, ST 12345", "City ST 12345", or "City ST" at the end of a phrase.
+    private val LOCALITY_STRICT =
+        """(?:$SEP$CITY$SEP$STATE_ANY_CASE$SEP?$ZIP|$SEP$CITY ?, ?$STATE(?:$SEP$ZIP)?)(?![\w-])"""
+    private val LOCALITY = """(?:$LOCALITY_STRICT|$SEP$CITY $STATE_LOOSE(?![\w-]))"""
+
+    private const val NUMBER = """(?<![\w#$.\-/:@])\d{1,6}[A-Za-z]?(?![\w-])"""
     private val WORD = """(?!(?:$STOP_WORDS)\b)[A-Za-z0-9][A-Za-z0-9'.\-]*"""
     private const val POST_DIRECTION = """(?: (?:N|S|E|W|NE|NW|SE|SW|North|South|East|West)\b\.?)?"""
     private const val UNIT =
-        """(?:\s?,?\s?(?:Apt|Apartment|Suite|Ste|Unit|Bldg|Building|Floor|Fl|Room|Rm|Lot|Space|Spc)\b\.? ?#? ?[A-Za-z0-9\-]+|\s?,?\s?# ?[A-Za-z0-9\-]+)?"""
+        """(?:$SEP(?:Apt|Apartment|Suite|Ste|Unit|Bldg|Building|Floor|Fl|Room|Rm|Lot|Space|Spc)\b\.? ?#? ?[A-Za-z0-9\-]+|$SEP# ?[A-Za-z0-9\-]+)?"""
     private const val ROUTE_NAMES =
         """(?:Highway|Hwy|Route|Rte|State Route|State Road|County Road|County Rd|Farm to Market|(?-i:US|SR|CR|FM))"""
 
     /** "123 Main St" or "4500 Hwy 50", with an optional city/state. */
     private val WITH_SUFFIX = Regex(
         "$NUMBER (?:(?:$WORD ){1,5}?(?:$SUFFIXES)\\b\\.?|(?:$WORD ){0,2}?$ROUTE_NAMES ?-? ?\\d{1,4}[A-Za-z]?\\b)" +
-            "$POST_DIRECTION$UNIT(?:$LOCALITY)?",
+            "$POST_DIRECTION$UNIT(?<loc>$LOCALITY)?",
         RegexOption.IGNORE_CASE,
     )
 
     /** Street names without a suffix ("350 Broadway") count only when a city and state follow. */
     private val WITH_LOCALITY = Regex(
-        "$NUMBER (?:$WORD ){0,3}?$WORD$UNIT$LOCALITY",
+        "$NUMBER (?:$WORD ){0,3}?$WORD$UNIT$LOCALITY_STRICT",
         RegexOption.IGNORE_CASE,
     )
-
-    private val HAS_LOCALITY =
-        Regex("""(?:,\s?$CITY\s?,\s?$STATE|$STATE_ANY_CASE\s?,?\s?$ZIP)""", RegexOption.IGNORE_CASE)
 
     /** Returns the addresses found in [text], in the order they appear, without duplicates. */
     fun extract(text: String): List<String> {
@@ -110,7 +133,15 @@ object AddressExtractor {
     }
 
     /** True if the address names a city/state or ZIP, so it can be looked up anywhere. */
-    fun hasLocality(address: String): Boolean = HAS_LOCALITY.containsMatchIn(address)
+    fun hasLocality(address: String): Boolean {
+        val flat = flatten(address)
+        if (WITH_LOCALITY.containsMatchIn(flat)) return true
+        val matcher = WITH_SUFFIX.toPattern().matcher(flat)
+        while (matcher.find()) {
+            if (matcher.group("loc") != null) return true
+        }
+        return false
+    }
 
     /** Comparison key that ignores case, punctuation, and spacing. */
     fun key(address: String): String = address.lowercase().replace(Regex("[^a-z0-9]"), "")

@@ -14,6 +14,11 @@ data class Stop(
     val point get() = GeoPoint(lat, lng)
 }
 
+/** The address the route starts and finishes at. */
+data class Home(val label: String, val lat: Double, val lng: Double) {
+    val point get() = GeoPoint(lat, lng)
+}
+
 /** Saves the stop list and settings so they survive the app being closed. */
 class StopStore(context: Context) {
     private val prefs = context.getSharedPreferences("route_planner", Context.MODE_PRIVATE)
@@ -60,9 +65,41 @@ class StopStore(context: Context) {
         get() = prefs.getBoolean(KEY_ROUND_TRIP, false)
         set(value) = prefs.edit().putBoolean(KEY_ROUND_TRIP, value).apply()
 
+    var useHome: Boolean
+        get() = prefs.getBoolean(KEY_USE_HOME, false)
+        set(value) = prefs.edit().putBoolean(KEY_USE_HOME, value).apply()
+
+    var farthestFirst: Boolean
+        get() = prefs.getBoolean(KEY_FARTHEST_FIRST, false)
+        set(value) = prefs.edit().putBoolean(KEY_FARTHEST_FIRST, value).apply()
+
+    var home: Home?
+        get() {
+            val label = prefs.getString(KEY_HOME_LABEL, null) ?: return null
+            val lat = prefs.getString(KEY_HOME_LAT, null)?.toDoubleOrNull() ?: return null
+            val lng = prefs.getString(KEY_HOME_LNG, null)?.toDoubleOrNull() ?: return null
+            return Home(label, lat, lng)
+        }
+        set(value) {
+            val edit = prefs.edit()
+            if (value == null) {
+                edit.remove(KEY_HOME_LABEL).remove(KEY_HOME_LAT).remove(KEY_HOME_LNG)
+            } else {
+                edit.putString(KEY_HOME_LABEL, value.label)
+                    .putString(KEY_HOME_LAT, value.lat.toString())
+                    .putString(KEY_HOME_LNG, value.lng.toString())
+            }
+            edit.apply()
+        }
+
     private companion object {
         const val KEY_STOPS = "stops"
         const val KEY_START_LOCATION = "start_from_location"
         const val KEY_ROUND_TRIP = "round_trip"
+        const val KEY_USE_HOME = "use_home"
+        const val KEY_FARTHEST_FIRST = "farthest_first"
+        const val KEY_HOME_LABEL = "home_label"
+        const val KEY_HOME_LAT = "home_lat"
+        const val KEY_HOME_LNG = "home_lng"
     }
 }

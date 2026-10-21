@@ -26,9 +26,16 @@ class Geocoding(context: Context) {
     suspend fun search(query: String, near: GeoPoint? = null): Result? {
         parseLatLng(query)?.let { return Result(query.trim(), it) }
         if (!isAvailable) return null
-        val address = near?.let { point -> lookup { geocoder, callback -> fromName(geocoder, query, point, callback) } }
-            ?: lookup { geocoder, callback -> fromName(geocoder, query, null, callback) }
-            ?: return null
+        // Search close by first (about 20 km, then 80 km), then anywhere.
+        var address: Address? = null
+        if (near != null) {
+            for (degrees in NEAR_DEGREES) {
+                address = lookup { geocoder, callback -> fromName(geocoder, query, near, degrees, callback) }
+                if (address != null) break
+            }
+        }
+        address = address ?: lookup { geocoder, callback -> fromName(geocoder, query, null, 0.0, callback) }
+        if (address == null) return null
         val label = address.getAddressLine(0) ?: query.trim()
         return Result(label, GeoPoint(address.latitude, address.longitude))
     }
@@ -59,7 +66,13 @@ class Geocoding(context: Context) {
     }
 
     @Suppress("DEPRECATION")
-    private fun fromName(g: Geocoder, query: String, near: GeoPoint?, callback: (List<Address>?) -> Unit) {
+    private fun fromName(
+        g: Geocoder,
+        query: String,
+        near: GeoPoint?,
+        degrees: Double,
+        callback: (List<Address>?) -> Unit,
+    ) {
         if (near == null) {
             if (Build.VERSION.SDK_INT >= 33) {
                 g.getFromLocationName(query, 1, listener(callback))
@@ -68,11 +81,10 @@ class Geocoding(context: Context) {
             }
             return
         }
-        // Roughly 80 km around the point.
-        val south = (near.lat - NEAR_DEGREES).coerceAtLeast(-90.0)
-        val north = (near.lat + NEAR_DEGREES).coerceAtMost(90.0)
-        val west = (near.lng - NEAR_DEGREES).coerceAtLeast(-180.0)
-        val east = (near.lng + NEAR_DEGREES).coerceAtMost(180.0)
+        val south = (near.lat - degrees).coerceAtLeast(-90.0)
+        val north = (near.lat + degrees).coerceAtMost(90.0)
+        val west = (near.lng - degrees).coerceAtLeast(-180.0)
+        val east = (near.lng + degrees).coerceAtMost(180.0)
         if (Build.VERSION.SDK_INT >= 33) {
             g.getFromLocationName(query, 1, south, west, north, east, listener(callback))
         } else {
@@ -97,7 +109,7 @@ class Geocoding(context: Context) {
         }
 
     companion object {
-        private const val NEAR_DEGREES = 0.75
+        private val NEAR_DEGREES = listOf(0.2, 0.75)
         private val LAT_LNG = Regex("""^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$""")
 
         /** Accepts input like "40.7128, -74.0060". */

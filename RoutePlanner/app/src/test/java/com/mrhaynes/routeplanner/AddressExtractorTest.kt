@@ -84,6 +84,57 @@ class AddressExtractorTest {
     }
 
     @Test
+    fun readsADriverRouteSheet() {
+        // Real-world style: lowercase towns and states, no ZIPs, shelf notes and product codes mixed in.
+        val text = """
+            1. Dollar general 651  windham road willimantic Ct
+            Normal dollar general follow the shelf tags have a 2/1 rack by the door and small display for 2.5 oz bags.
+
+            2. Bobs windham iga 422 Windham road willimantic ct
+            Stateline bill as 28316 takis
+
+            3. Tony’s pizza 117 Main Street willimantic ct
+            Top shelf stateline 70052 use for code 2.40/2.99 retail
+            Next shelf 501-3 rows 511-1 row and 561-1 row
+
+            4. Willimantic Mobil 18 boston post road wilimantic under misc
+            Big bags on top shelf. 27206-1 row, 27176-1 row, 27209-2 rows and 27187-1 row.
+            Next shelf 19013-2 row and 19028-2 rows
+            Next shelf pork skins 27429,27430
+
+            5. Chuckys ash and Jackson 407 Jackson street willimantic ct Top shelf
+            3 foot section at the end of the aisle
+
+            6. Dollar general 238 willimantic road Chaplin ct
+            8. Papa’s pizza 1555 wmain street williamantic ct
+            9. Eastern market 1071 Main Street willimantic ct
+            Have 6 foot section 4 shelf’s
+            27206 -3 rows, 27176-2 rows 27209- 3 rows and 27187-3 rows.
+
+            Truck build up
+            501-3 case
+            19002-8 cases
+            2356-2cases
+            35341-2 cases cheese ball
+            19205-1 case rod pretzels
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "651 windham road willimantic Ct",
+                "422 Windham road willimantic ct",
+                "117 Main Street willimantic ct",
+                "18 boston post road",
+                "407 Jackson street willimantic ct",
+                "238 willimantic road Chaplin ct",
+                "1555 wmain street williamantic ct",
+                "1071 Main Street willimantic ct",
+            ),
+            AddressExtractor.extract(text),
+        )
+    }
+
+    @Test
     fun ignoresTextWithNoAddresses() {
         val text = """
             Meeting moved to 3 pm on 10/22. Bring 2 laptops and 15 copies.
@@ -111,6 +162,9 @@ class AddressExtractorTest {
     fun knowsWhenAnAddressHasACity() {
         assertTrue(AddressExtractor.hasLocality("123 Main St, Springfield, IL"))
         assertTrue(AddressExtractor.hasLocality("77 Oak Dr Austin TX 78701"))
+        assertTrue(AddressExtractor.hasLocality("117 Main Street willimantic ct"))
         assertFalse(AddressExtractor.hasLocality("123 Main St"))
+        assertFalse(AddressExtractor.hasLocality("12 Pine Ct"))
+        assertFalse(AddressExtractor.hasLocality("123 Main St come on in"))
     }
 }

@@ -13,13 +13,14 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
-import android.widget.CheckBox
+import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ProgressBar
@@ -64,12 +65,15 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
     private lateinit var input: EditText
     private lateinit var summary: TextView
     private lateinit var progress: ProgressBar
-    private lateinit var startFromLocation: CheckBox
-    private lateinit var roundTrip: CheckBox
+    private lateinit var homeChip: CompoundButton
+    private lateinit var startFromLocation: CompoundButton
+    private lateinit var roundTrip: CompoundButton
+    private lateinit var farthestFirst: CompoundButton
 
     private val stops = mutableListOf<Stop>()
     private var googleMap: GoogleMap? = null
     private var lastLocation: GeoPoint? = null
+    private var home: Home? = null
     private var busy = false
 
     private val useMiles = Locale.getDefault().country in setOf("US", "GB", "LR", "MM")
@@ -89,11 +93,33 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         input = findViewById(R.id.input_address)
         summary = findViewById(R.id.summary)
         progress = findViewById(R.id.progress)
-        startFromLocation = findViewById(R.id.cb_start_location)
-        roundTrip = findViewById(R.id.cb_round_trip)
+        homeChip = findViewById(R.id.chip_home)
+        startFromLocation = findViewById(R.id.chip_start_location)
+        roundTrip = findViewById(R.id.chip_round_trip)
+        farthestFirst = findViewById(R.id.chip_farthest)
 
+        home = store.home
+        homeChip.isChecked = store.useHome && home != null
         startFromLocation.isChecked = store.startFromLocation
         roundTrip.isChecked = store.roundTrip
+        farthestFirst.isChecked = store.farthestFirst
+        updateChipStates()
+
+        homeChip.setOnCheckedChangeListener { _, checked ->
+            if (checked && home == null) {
+                // No home yet: ask for it, and turn this on once it's saved.
+                homeChip.isChecked = false
+                showHomeDialog()
+                return@setOnCheckedChangeListener
+            }
+            store.useHome = checked
+            updateChipStates()
+            refresh(fitMap = true)
+        }
+        homeChip.setOnLongClickListener {
+            showHomeDialog()
+            true
+        }
         startFromLocation.setOnCheckedChangeListener { _, checked ->
             store.startFromLocation = checked
             if (checked) ensureLocationPermission()
@@ -102,6 +128,9 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         roundTrip.setOnCheckedChangeListener { _, checked ->
             store.roundTrip = checked
             refresh()
+        }
+        farthestFirst.setOnCheckedChangeListener { _, checked ->
+            store.farthestFirst = checked
         }
 
         setupList()
@@ -218,9 +247,18 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         }
     }
 
-    /** Addresses without a city are looked up near the phone first. */
-    private fun biasFor(address: String): GeoPoint? =
-        if (AddressExtractor.hasLocality(address)) null else lastLocation
+    /** Addresses without a city are looked up near the route's area first. */
+    private fun biasFor(address: String, placed: List<GeoPoint> = emptyList()): GeoPoint? =
+        if (AddressExtractor.hasLocality(address)) null else areaHint(placed)
+
+    /** Middle of the stops just added, else of the existing stops, else the phone or home. */
+    private fun areaHint(placed: List<GeoPoint>): GeoPoint? {
+        val points = placed.ifEmpty { stops.map { it.point } }
+        if (points.isNotEmpty()) {
+            return GeoPoint(points.sumOf { it.lat } / points.size, points.sumOf { it.lng } / points.size)
+        }
+        return lastLocation ?: home?.point
+    }
 
     private fun addFromMap(point: GeoPoint) {
         runBusy {
@@ -305,10 +343,18 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         if (addresses.isEmpty()) return
         runBusy {
             val failed = mutableListOf<String>()
-            addresses.forEachIndexed { i, address ->
+            val placed = mutableListOf<GeoPoint>()
+            // Addresses with a town go first, so ones without can be found near them.
+            val (withTown, withoutTown) = addresses.partition { AddressExtractor.hasLocality(it) }
+            (withTown + withoutTown).forEachIndexed { i, address ->
                 summary.text = getString(R.string.finding_progress, i + 1, addresses.size)
-                val result = geocoding.search(address, biasFor(address))
-                if (result == null) failed.add(address) else addStop(result.label, result.point)
+                val result = geocoding.search(address, biasFor(address, placed))
+                if (result == null) {
+                    failed.add(address)
+                } else {
+                    addStop(result.label, result.point)
+                    placed.add(result.point)
+                }
             }
             refresh(fitMap = true)
             if (failed.isNotEmpty()) {
@@ -331,22 +377,26 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
             return
         }
         runBusy {
-            val location = if (startFromLocation.isChecked) currentLocation() else null
-            if (startFromLocation.isChecked && location == null) {
+            val homePoint = home?.point?.takeIf { usingHome }
+            val wantsLocation = homePoint == null && startFromLocation.isChecked
+            val location = if (wantsLocation) currentLocation() else null
+            if (wantsLocation && location == null) {
                 toast(getString(R.string.no_location_fallback))
             }
-            // With no location, the first pending stop stays first and is the start.
-            val fixedFirst: Stop? = if (location == null) pending.first() else null
+            val base = homePoint ?: location
+            // With no home or location, the first pending stop stays first and is the start.
+            val fixedFirst: Stop? = if (base == null) pending.first() else null
             val toOrder = if (fixedFirst != null) pending.drop(1) else pending
-            val origin: GeoPoint = location ?: pending.first().point
+            val origin: GeoPoint = base ?: pending.first().point
+            val end = if (returnsToStart) origin else null
 
             val points = toOrder.map { it.point }
-            val before = RouteOptimizer.routeLength(origin, points, roundTrip.isChecked)
+            val before = RouteOptimizer.routeLength(origin, points, end)
             val order = withContext(Dispatchers.Default) {
-                RouteOptimizer.optimize(origin, points, roundTrip.isChecked)
+                RouteOptimizer.plan(origin, points, returnsToStart, farthestFirst.isChecked)
             }
             val ordered = order.map { toOrder[it] }
-            val after = RouteOptimizer.routeLength(origin, ordered.map { it.point }, roundTrip.isChecked)
+            val after = RouteOptimizer.routeLength(origin, ordered.map { it.point }, end)
 
             stops.clear()
             stops.addAll(completed + listOfNotNull(fixedFirst) + ordered)
@@ -365,7 +415,7 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
             return
         }
         val destinations = pendingIndexes.map { stops[it].point }.toMutableList()
-        routeStart()?.takeIf { roundTrip.isChecked }?.let { destinations.add(it) }
+        routeStart()?.takeIf { returnsToStart }?.let { destinations.add(it) }
 
         // Origin is left empty so Google Maps starts from where the phone is now.
         val parts = MapsLinks.parts(null, destinations)
@@ -387,12 +437,98 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
 
     private fun stopNumberLabel(pendingIndexes: List<Int>, destIndex: Int): String =
         if (destIndex < pendingIndexes.size) (pendingIndexes[destIndex] + 1).toString()
-        else getString(R.string.start_label)
+        else getString(if (usingHome) R.string.home_label else R.string.start_label)
 
-    /** Where the route begins: the phone's location or the first stop. */
-    private fun routeStart(): GeoPoint? =
-        if (startFromLocation.isChecked) lastLocation ?: stops.firstOrNull()?.point
-        else stops.firstOrNull()?.point
+    private val usingHome: Boolean get() = homeChip.isChecked && home != null
+
+    /** Home always means a round trip; otherwise it's the "Return to start" setting. */
+    private val returnsToStart: Boolean get() = usingHome || roundTrip.isChecked
+
+    /** Where the route begins: home, the phone's location, or the first stop. */
+    private fun routeStart(): GeoPoint? = when {
+        usingHome -> home?.point
+        startFromLocation.isChecked -> lastLocation ?: stops.firstOrNull()?.point
+        else -> stops.firstOrNull()?.point
+    }
+
+    /** Start point drawn on the map and used for distances, or null to start at the first stop. */
+    private fun startPoint(): GeoPoint? = when {
+        usingHome -> home?.point
+        startFromLocation.isChecked -> lastLocation
+        else -> null
+    }
+
+    // ---------- Home ----------
+
+    private fun updateChipStates() {
+        // Home sets both the start and the end, so these two don't apply.
+        startFromLocation.isEnabled = !usingHome
+        roundTrip.isEnabled = !usingHome
+    }
+
+    private fun showHomeDialog() {
+        val density = resources.displayMetrics.density
+        val field = EditText(this).apply {
+            hint = getString(R.string.home_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
+            isSingleLine = true
+            setText(home?.label.orEmpty())
+        }
+        val container = FrameLayout(this).apply {
+            val side = (20 * density).toInt()
+            setPadding(side, (8 * density).toInt(), side, 0)
+            addView(field)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.home_title)
+            .setMessage(R.string.home_message)
+            .setView(container)
+            .setPositiveButton(R.string.save) { _, _ -> saveHomeFromText(field.text.toString()) }
+            .setNeutralButton(R.string.use_my_location) { _, _ -> saveHomeFromLocation() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun saveHomeFromText(text: String) {
+        val query = text.trim()
+        if (query.isEmpty()) return
+        runBusy {
+            val result = geocoding.search(query, biasFor(query))
+            if (result == null) {
+                toast(getString(R.string.address_not_found, query))
+            } else {
+                setHome(Home(result.label, result.point.lat, result.point.lng))
+            }
+        }
+    }
+
+    private fun saveHomeFromLocation() {
+        if (!hasLocationPermission()) {
+            ensureLocationPermission()
+            toast(getString(R.string.no_location))
+            return
+        }
+        runBusy {
+            val location = currentLocation()
+            if (location == null) {
+                toast(getString(R.string.no_location))
+            } else {
+                setHome(Home(geocoding.describe(location), location.lat, location.lng))
+            }
+        }
+    }
+
+    private fun setHome(newHome: Home) {
+        home = newHome
+        store.home = newHome
+        if (homeChip.isChecked) {
+            refresh(fitMap = true)
+        } else {
+            homeChip.isChecked = true // listener saves the setting and redraws
+        }
+        updateChipStates()
+        toast(getString(R.string.home_saved, newHome.label))
+    }
 
     private fun openMaps(url: String) {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(MAPS_PACKAGE)
@@ -466,6 +602,7 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.action_bulk_add -> showPasteDialog()
+            R.id.action_set_home -> showHomeDialog()
             R.id.action_reverse -> {
                 stops.reverse()
                 adapter.notifyDataSetChanged()
@@ -569,12 +706,14 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
             summary.text = getString(R.string.empty_hint)
             return
         }
-        val start = if (startFromLocation.isChecked) lastLocation else null
+        val start = startPoint()
         val points = pending.map { it.point }
         val length = when {
             points.isEmpty() -> 0.0
-            start != null -> RouteOptimizer.routeLength(start, points, roundTrip.isChecked)
-            else -> RouteOptimizer.routeLength(points.first(), points.drop(1), roundTrip.isChecked)
+            start != null ->
+                RouteOptimizer.routeLength(start, points, start.takeIf { returnsToStart })
+            else ->
+                RouteOptimizer.routeLength(points.first(), points.drop(1), points.first().takeIf { returnsToStart })
         }
         summary.text = getString(
             R.string.summary,
@@ -589,8 +728,16 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
         map.clear()
         val path = mutableListOf<LatLng>()
 
-        val start = lastLocation
-        if (startFromLocation.isChecked && start != null) path.add(LatLng(start.lat, start.lng))
+        home?.let {
+            map.addMarker(
+                MarkerOptions()
+                    .position(LatLng(it.lat, it.lng))
+                    .title(getString(R.string.home_label) + ": " + it.label)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)),
+            )
+        }
+        val start = startPoint()
+        if (start != null) path.add(LatLng(start.lat, start.lng))
 
         stops.forEachIndexed { i, stop ->
             val pos = LatLng(stop.lat, stop.lng)
@@ -603,7 +750,7 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
             )
             if (!stop.done) path.add(pos)
         }
-        if (roundTrip.isChecked && path.size > 1) path.add(path.first())
+        if (returnsToStart && path.size > 1) path.add(path.first())
 
         if (path.size > 1) {
             map.addPolyline(
@@ -617,10 +764,10 @@ class MainActivity : AppCompatActivity(), StopAdapter.Listener {
 
         if (!fit) return
         val all = stops.map { LatLng(it.lat, it.lng) } +
-            listOfNotNull(start?.takeIf { startFromLocation.isChecked }?.let { LatLng(it.lat, it.lng) })
+            listOfNotNull(start?.let { LatLng(it.lat, it.lng) })
         try {
             when {
-                all.isEmpty() -> start?.let {
+                all.isEmpty() -> (lastLocation ?: home?.point)?.let {
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.lat, it.lng), 13f))
                 }
                 all.size == 1 -> map.animateCamera(CameraUpdateFactory.newLatLngZoom(all[0], 14f))
