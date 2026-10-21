@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="56dp"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/stop_handle"
+        android:layout_width="32dp"
+        android:layout_height="40dp"
+        android:contentDescription="@string/reorder"
+        android:scaleType="center"
+        android:src="@drawable/ic_drag" />
+
+    <TextView
+        android:id="@+id/stop_number"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:background="@drawable/number_badge"
+        android:gravity="center"
+        android:textColor="@android:color/white"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/stop_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+    <CheckBox
+        android:id="@+id/stop_done"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/mark_done" />
+
+    <ImageButton
+        android:id="@+id/stop_delete"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/delete"
+        android:src="@drawable/ic_delete" />
+</LinearLayout>

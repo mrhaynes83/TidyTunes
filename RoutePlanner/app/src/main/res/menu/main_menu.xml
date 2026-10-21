@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_bulk_add"
+        android:title="@string/bulk_title"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_reverse"
+        android:title="@string/reverse_order"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_reset_done"
+        android:title="@string/reset_done"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_clear_done"
+        android:title="@string/clear_done"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_clear_all"
+        android:title="@string/clear_all"
+        app:showAsAction="never" />
+</menu>

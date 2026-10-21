@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Route Planner</string>
+    <string name="address_hint">Address or place</string>
+    <string name="add">Add</string>
+    <string name="start_from_location">Start from my location</string>
+    <string name="round_trip">Return to start</string>
+    <string name="optimize">Optimize route</string>
+    <string name="navigate">Navigate</string>
+    <string name="reorder">Drag to reorder</string>
+    <string name="delete">Delete</string>
+    <string name="mark_done">Mark done</string>
+    <string name="mark_not_done">Mark not done</string>
+    <string name="navigate_here">Navigate to this stop</string>
+    <string name="show_on_map">Show on map</string>
+    <string name="start_label">start</string>
+
+    <string name="empty_hint">Add stops by typing an address, pasting a list (menu), or long-pressing the map.</string>
+    <string name="summary">%1$d stops · %2$d left · about %3$s (straight-line)</string>
+    <string name="map_disabled">Map preview is off because this build has no Google Maps API key.\n\nAdding stops, optimizing, and navigating in the Google Maps app all still work.</string>
+    <string name="geocoder_missing">Address search isn\'t available on this phone. Enter coordinates like 40.71, -74.00 instead.</string>
+    <string name="address_not_found">Couldn\'t find \"%1$s\"</string>
+    <string name="too_many_stops">You can have up to %1$d stops.</string>
+    <string name="need_two_stops">Add at least 2 stops that aren\'t done.</string>
+    <string name="no_location_fallback">Couldn\'t get your location, so the first stop is used as the start.</string>
+    <string name="optimized_result">Route optimized: about %1$s (was %2$s)</string>
+    <string name="nothing_to_navigate">No stops left to navigate to.</string>
+    <string name="nav_parts_title">Google Maps allows 10 stops per trip. Open a part:</string>
+    <string name="nav_part">Part %1$d: stops %2$s to %3$s</string>
+
+    <string name="bulk_title">Paste list of addresses</string>
+    <string name="bulk_hint">One address per line</string>
+    <string name="bulk_add">Add all</string>
+    <string name="finding_progress">Finding address %1$d of %2$d…</string>
+    <string name="bulk_failed_title">%1$d addresses not found</string>
+
+    <string name="reverse_order">Reverse order</string>
+    <string name="reset_done">Mark all not done</string>
+    <string name="clear_done">Remove completed stops</string>
+    <string name="clear_all">Remove all stops</string>
+    <string name="confirm_clear">Remove all stops?</string>
+    <string name="clear">Remove</string>
+</resources>
